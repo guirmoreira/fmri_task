@@ -1,0 +1,174 @@
+#:import c kivy.utils.get_color_from_hex
+#:import Window kivy.core.window.Window
+
+
+<TelaDeConfiguracao>:
+
+    FloatLayout:
+
+        Label:
+            color: c("#303030")
+            size_hint: None, None
+            size: self.texture_size
+            pos_hint: {"top": .953, "x": .03}
+            text: "Individuo"
+            font_size: "14sp"
+
+        TextInput:
+            size_hint: .56, None
+            pos_hint: {"top": .963, "x": .25}
+            font_size: "13sp"
+            height: self.font_size + 15
+
+        Label:
+            color: c("#303030")
+            size_hint: None, None
+            size: self.texture_size
+            pos_hint: {"top": .85, "x": .03}
+            text: "Destino dos dados"
+            font_size: "14sp"
+
+        TextInput:
+            size_hint: .56, None
+            pos_hint: {"top": .86, "x": .25}
+            font_size: "13sp"
+            height: self.font_size + 15
+
+        Button:
+            size_hint: 0.13, 0.074
+            pos_hint: {"top": .862, "x": .836}
+            text: "Procurar"
+            font_size: "13sp"
+
+        Label:
+            color: c("#303030")
+            size_hint: None, None
+            size: self.texture_size
+            pos_hint: {"top": .745, "x": .03}
+            text: "Arquivo de testes"
+            font_size: "14sp"
+
+        TextInput:
+            size_hint: .56, None
+            pos_hint: {"top": .755, "x": .25}
+            font_size: "13sp"
+            height: self.font_size + 15
+
+        Button:
+            size_hint: 0.13, 0.074
+            pos_hint: {"top": .757, "x": .836}
+            text: "Procurar"
+            font_size: "13sp"
+
+
+        TextInput:
+            pos_hint: {"right": .965, "center_y": .42 }
+            size_hint: .93, .4
+            text: "Nenhum treinamento ou experimento realizado."
+            font_size: "13sp"
+            readonly: True
+
+        BoxLayout:
+            orientation: "horizontal"
+            size_hint: 1., 0.35
+            pos_hint: {"x": 0, "y": 0}
+
+            BoxLayout:
+                padding: [20]
+
+                Button:
+                    background_color: c("#787878")
+                    size_hint: .3, .5
+                    text: "Iniciar Treinamento"
+                    font_size: "18sp"
+
+            BoxLayout:
+                padding: [20]
+
+                Button:
+                    background_color: c("#787878")
+                    size_hint: .3, .5
+                    text: "Iniciar Experimento"
+                    font_size: "18sp"
+
+
+<OptionNumber@Label>:
+    color: c("#000000")
+    size_hint: None, None
+    height: self.font_size + 10
+    width: self.font_size + 10
+    font_size: "70sp"
+    canvas.before:
+        Color:
+            rgba: 1, 1, 1, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+
+<Treinamento>:
+    some_property: setattr(Window, 'fullscreen' , 'auto')  or 'real_value!'
+    canvas.before:
+        Color:
+            rgba: 0, 0, 0, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    Label:
+        color: c("#ffffff")
+        size_hint: None, None
+        size: self.texture_size
+        pos_hint: {"top": .8, "x": .21}
+        text: "5 + 4 = ?"
+        font_size: "80sp"
+        id: eq_treinamento
+
+    BoxLayout:
+        size_hint: None, None
+        pos_hint: {"center_x": .25, "center_y": .4}
+        orientation: "horizontal"
+        id: "answer_menu"
+        OptionNumber:
+            text: "0"
+            id: on0
+        OptionNumber:
+            text: "1"
+            id: on1
+        OptionNumber:
+            text: "2"
+            id: on2
+        OptionNumber:
+            text: "3"
+            id: on3
+        OptionNumber:
+            text: "4"
+            id: on4
+        OptionNumber:
+            text: "5"
+            id: on5
+        OptionNumber:
+            text: "6"
+            id: on6
+        OptionNumber:
+            text: "7"
+            id: on7
+        OptionNumber:
+            text: "8"
+            id: on8
+        OptionNumber:
+            text: "9"
+            id: on9
+
+
+
+
+
+
+
+
+
+
+
+
+
