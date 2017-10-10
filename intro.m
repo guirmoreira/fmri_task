@@ -68,7 +68,7 @@ function experiment_bt_Callback(hObject, eventdata, handles)
 if isempty(handles.work_dir.String)
     errordlg('Coloque um nome de individuo para iniciar o experimento', 'Erro');
 else
-    experiment(handles.work_dir.String, handles.quest_dir.String,get(handles.nome_individuo,'string'));
+    experiment(handles.work_dir.String, handles.quest_dir.String, get(handles.nome_individuo,'string'), handles.avg_time);
 end
 
 function dados_treinamento_Callback(hObject, eventdata, handles)
