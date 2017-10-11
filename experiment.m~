@@ -112,7 +112,6 @@ if (handles.stateOrder(handles.stateIndex) == 1) & (handles.blockGui == 0)
             setVisibleRest(handles);
             pause(handles.restTime);
             handles.blockGui = 0;
-            guidata(hObject, handles);
             disp('setou blockGui = 0 -> inicio');
             background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
         end
@@ -128,14 +127,14 @@ if (handles.stateOrder(handles.stateIndex) == 2) & (~isnan(keyPressed)) & (handl
         setFeedback(handles, answer);
         pause(handles.feedbackTime);      % tempo de feedback ao usuario
         resetBtColors(hObject, handles);
-        randomRest(hObject, handles);
+        randomRest(handles);
         background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
     end
     pause(handles.avgTime)
     setFeedback(handles,2);
     pause(handles.feedbackTime);      % tempo de feedback ao usuario
     resetBtColors(hObject, handles);
-    randomRest(hObject, handles);
+    randomRest(handles);
     background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
 elseif (handles.stateOrder(handles.stateIndex) == 2) & (handles.blockGui == 0)
     newQuestion(hObject, data);
@@ -144,7 +143,7 @@ elseif (handles.stateOrder(handles.stateIndex) == 2) & (handles.blockGui == 0)
     setFeedback(handles,2);
     pause(handles.feedbackTime);      % tempo de feedback ao usuario
     resetBtColors(hObject, handles);
-    randomRest(hObject, handles);
+    randomRest(handles);
     background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
 end
 
@@ -316,14 +315,12 @@ else
 end
 % disp(strcat('answer: ', num2str(answer), ' response: ', num2str(handles.responses(handles.questionIndex)), ' key: ', key));
 
-function randomRest(hObject, handles)
+function randomRest(handles)
 handles.blockGui = 1;
-guidata(hObject, handles);
 disp('set blockGui = 1');
 setVisibleRest(handles);
 pause(random('normal', 3, 0.5));
 handles.blockGui = 0;
-guidata(hObject, handles);
 disp('set blockGui = 0');
 
 function sleep(t, hObject, handles)
