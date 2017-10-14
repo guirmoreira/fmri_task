@@ -68,9 +68,16 @@ handles.activationTime = 40;
 
 handles.feedbackTime = 0.5;
 
+handles.blockGui = 0;
+
+handles.questionCounter = 1;
+
 handles.spentTime = 0;
 
-handles.blockGui = 0;
+handles.timeWatcher = zeros(1,6);
+handles.cLimitTime = handles.avgTime;
+handles.cResponseTime = 0;
+handles.cRestTime = 0;
 
 guidata(hObject, handles);
 set(gcf, 'units','normalized','outerposition',[0 0 1 1]);
@@ -81,7 +88,6 @@ varargout{1} = handles.output;
 
 
 function background_WindowKeyPressFcn(hObject, eventdata, handles)
-data = guidata(hObject);
 
 disp(strcat('blockGui: ',num2str(handles.blockGui)));
 
@@ -106,13 +112,13 @@ if (handles.stateOrder(handles.stateIndex) == 1) & (handles.blockGui == 0)
     if strcmpi(keyPressed,'space')          % trigger esta como 'space'
         if ~handles.isRunning
             handles.blockGui = 1;
-            disp('setou blockGui = 1 -> inicio');
-            handles.stateIndex = handles.stateIndex + 1;
             guidata(hObject, handles);
             setVisibleRest(handles);
             pause(handles.restTime);
             handles.blockGui = 0;
-            disp('setou blockGui = 0 -> inicio');
+            populateTimeWatcher(hObject, handles, handles.stateOrder(handles.stateIndex), 0, 0, 0, 0, handles.restTime);
+            handles.stateIndex = handles.stateIndex + 1;
+            guidata(hObject, handles);
             background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
         end
     end
@@ -123,27 +129,42 @@ if (handles.stateOrder(handles.stateIndex) == 2) & (~isnan(keyPressed)) & (handl
     setVisibleControl(handles);
     if ismember(keyPressed, handles.possibleKeys)    
         handleResponse(hObject, handles, responseFile, formatSpec, keyPressed);
-        answer = checkAnswer(handles, keyPressed);
+        answer = checkAnswer(hObject, handles, keyPressed);
         setFeedback(handles, answer);
+        handles.blockGui = 1;
+        guidata(hObject,handles);
         pause(handles.feedbackTime);      % tempo de feedback ao usuario
+        handles.blockGui = 0;
+        guidata(hObject,handles);
         resetBtColors(hObject, handles);
-        randomRest(handles);
+        randomRest(hObject, handles);
+        populateTimeWatcher(hObject, handles, handles.stateOrder(handles.stateIndex), handles.questionCounter, handles.cLimitTime, handles.cLimitTime, handles.feedbackTime, handles.cRestTime);
         background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
     end
-    pause(handles.avgTime)
+    waitResponse(hObject, handles);
     setFeedback(handles,2);
+    handles.blockGui = 1;
+    guidata(hObject,handles);
     pause(handles.feedbackTime);      % tempo de feedback ao usuario
+    handles.blockGui = 0;
+    guidata(hObject,handles);
     resetBtColors(hObject, handles);
-    randomRest(handles);
+    randomRest(hObject, handles);
+    populateTimeWatcher(hObject, handles, handles.stateOrder(handles.stateIndex), handles.questionCounter, handles.cLimitTime, handles.cLimitTime, handles.feedbackTime, handles.cRestTime);
     background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
 elseif (handles.stateOrder(handles.stateIndex) == 2) & (handles.blockGui == 0)
-    newQuestion(hObject, data);
+    newQuestion(hObject, handles);
     setVisibleControl(handles);
-    pause(handles.avgTime)
+    waitResponse(hObject, handles);
     setFeedback(handles,2);
+    handles.blockGui = 1;
+    guidata(hObject,handles);
     pause(handles.feedbackTime);      % tempo de feedback ao usuario
+    handles.blockGui = 0;
+    guidata(hObject,handles);
     resetBtColors(hObject, handles);
-    randomRest(handles);
+    randomRest(hObject, handles);
+    populateTimeWatcher(hObject, handles, handles.stateOrder(handles.stateIndex), handles.questionCounter, handles.cLimitTime, handles.cLimitTime, handles.feedbackTime, handles.cRestTime);
     background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
 end
 
@@ -154,25 +175,28 @@ end
 guidata(hObject, handles);
 
 
-function handleResponse(hObject, data, responseFile, formatSpec, key)
-bt = choosenBt(data, key);
+function handleResponse(hObject, handles, responseFile, formatSpec, key)
+bt = choosenBt(handles, key);
 bt.BackgroundColor = [1 0 0];
 bt.ForegroundColor = [1 1 1];
-answer = checkAnswer(data, key);
-fprintf(responseFile,formatSpec,data.counter,data.stateOrder(data.stateIndex),data.equation.String{1},data.responses(data.questionIndex),key,answer,toc);
-data.counter=data.counter+1;
-guidata(hObject,data);
+answer = checkAnswer(hObject, handles, key);
+fprintf(responseFile,formatSpec,handles.counter,handles.stateOrder(handles.stateIndex),handles.equation.String{1},handles.responses(handles.questionIndex),key,answer,toc);
+handles.counter=handles.counter+1;
+handles.cResponseTime = getTimeSaved;
+populateTimeWatcher(hObject, handles, handles.stateOrder(handles.stateIndex), handles.questionCounter, handles.cLimitTime, handles.cResponseTime, handles.feedbackTime, handles.cRestTime);
+guidata(hObject,handles);
 
-function newQuestion(hObject, data)
-data.blockGui = 0;
-resetBtColors(hObject, data);
-questions = data.questions;
+function newQuestion(hObject, handles)
+handles.blockGui = 0;
+resetBtColors(hObject, handles);
+questions = handles.questions;
 questions_size = size(questions);
 questions_size = questions_size(1);
 choosen_equation_index = fix(rand()*questions_size);
-data.questionIndex = choosen_equation_index;
-data.equation.String = strcat(data.questions(choosen_equation_index), ' ?');
-guidata(hObject,data);
+handles.questionIndex = choosen_equation_index;
+handles.equation.String = strcat(handles.questions(choosen_equation_index), ' ?');
+setTimeSaved;
+guidata(hObject,handles);
 tic;
 
 function bt = choosenBt(data, key)
@@ -279,6 +303,7 @@ function setAllInvisible(handles)
 set(handles.feedback,'visible','off')
 set(handles.trigger,'visible','off')
 set(handles.equation,'visible','off')
+set(handles.timer,'visible','off')
 set(handles.cross,'visible','off')
 set(handles.bt0,'visible','off')
 set(handles.bt1,'visible','off')
@@ -307,29 +332,60 @@ switch type
 end
 
 
-function answer = checkAnswer(handles, key)
+function answer = checkAnswer(hObject, handles, key)
+handles = guidata(hObject);
 if strcmpi(num2str(handles.responses(handles.questionIndex)), key)
     answer = 1;
 else
     answer = 0;
 end
-% disp(strcat('answer: ', num2str(answer), ' response: ', num2str(handles.responses(handles.questionIndex)), ' key: ', key));
+disp(strcat('answer: ', num2str(answer), ' response: ', num2str(handles.responses(handles.questionIndex)), ' index: ', num2str(handles.questionIndex), ' key: ', key));
 
-function randomRest(handles)
+function randomRest(hObject, handles)
 handles.blockGui = 1;
-disp('set blockGui = 1');
+guidata(hObject, handles);
 setVisibleRest(handles);
-pause(random('normal', 3, 0.5));
+i = random('normal', 3, 0.5);
+pause(i);
 handles.blockGui = 0;
-disp('set blockGui = 0');
+handles.cRestTime = i;
+guidata(hObject, handles);
 
-function sleep(t, hObject, handles)
-set(hObject,'WindowKeyPressFcn', @blockWindowKeyPressFcn)
-pause(t);
-set(hObject,'WindowKeyPressFcn', {@background_WindowKeyPressFcn, handles})
+function waitResponse(hObject, handles)
+setCountdown(hObject, handles);
 
-% --- Executes when background is resized.
+function setCountdown(hObject, handles)
+set(handles.timer,'visible','on');
+t = timer('TimerFcn', 'stat=false; counter=0; disp(''Acabou o timer!'')', 'StartDelay', handles.avgTime);
+start(t)
+stat=true;
+counter = 0;
+while(stat==true)
+  pause(0.01)
+  set(handles.timer,'String', sprintf('%0.2f', abs(handles.avgTime-counter*0.01)));
+  guidata(hObject, handles);
+  counter = counter+1;
+  if handles.avgTime-counter*0.01 <= -0.005
+      break
+  end
+end
+delete(t)
+
+function populateTimeWatcher(hObject, handles, state, questionCounter, limitTime, responseTime, feedbackTime, restTime)
+s = size(handles.timeWatcher);
+s_rows = s(1);
+index = s_rows + 1;
+handles.timeWatcher(index, :) = [state questionCounter limitTime responseTime feedbackTime restTime];
+guidata(hObject, handles);
+disp(handles.timeWatcher);
+
+function setTimeSaved
+global timeSaved
+timeSaved = tic;
+
+function r = getTimeSaved
+global timeSaved
+r = toc(timeSaved);
+
+
 function background_SizeChangedFcn(hObject, eventdata, handles)
-% hObject    handle to background (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
