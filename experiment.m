@@ -24,60 +24,53 @@ function experiment_OpeningFcn(hObject, eventdata, handles, varargin)
 handles.output = hObject;
 clc
 
+handles.initialEventdata = eventdata;
+
 handles.workDir = varargin{1};
 handles.questDir = varargin{2};
 handles.indNome = varargin{3};
 handles.avgTime = varargin{4};
-% handles.avgTime = 5;
 dir = strcat(handles.workDir,'/',handles.indNome);
 mkdir(dir);
 
-handles.initialEventdata = eventdata;
-
 responseFile = fopen(strcat(dir,'/','experiment.csv'), 'w');
-handles.responseFile = responseFile;
-fprintf(responseFile, '#,fase,question,right_answer,given_answer,hits,time\n');
+setResponseFile(responseFile);
+fprintf(getResponseFile, '#,fase,question,right_answer,given_answer,hits,time\n');
 
 [questions, responses] = csvimport(handles.questDir, 'columns', {'questions', 'response'});
 
-handles.questions = questions;
-handles.responses = responses;
-handles.questionIndex = 1;
-handles.counter = 1;
+setQuestions(questions);
+setResponses(responses);
+setQuestionIndex(1);
+setCounter(1);
 
-handles.escStatus = false;
-handles.isRunning = false;
-
-handles.workDir = '';
-
-handles.possibleKeys = ['0','1','2','3','4','5','6','7','8','9', 'numpad0', 'numpad1', 'numpad2', 'numpad3', 'numpad4', 'numpad5', 'numpad6', 'numpad7', 'numpad8', 'numpad9'];
+setPossibleKeys(['0','1','2','3','4','5','6','7','8','9', 'numpad0', 'numpad1', 'numpad2', 'numpad3', 'numpad4', 'numpad5', 'numpad6', 'numpad7', 'numpad8', 'numpad9']);
 
 % state 0 : initial
 % state 1 : rest
 % state 2 : control
 % state 3 : activation
 
-handles.stateOrder = [1 2 3 1 3 2 1 2 3 1 3 2 1 3 2 1];
-handles.stateIndex = 1;
+setStateOrder([1 3 2 1 2 3 1 2 3 1 3 2 1 3 2 1]);
+%setStateOrder([1 3 2 1]);
+setStateIndex(1);
 
-% state = handles.stateOrder(handles.stateIndex);
+setRestTime(20);
+setControlTime(40);
+setActivationTime(40);
 
-handles.restTime = 5;
-handles.controlTime = 40;
-handles.activationTime = 40;
+setFeedbackTime(0.5);
 
-handles.feedbackTime = 0.5;
+setBlockGui(0);
 
-handles.blockGui = 0;
+setQuestionCounter(1);
 
-handles.questionCounter = 1;
+setTimeWatcher(zeros(1,7));
+setcLimitTime(handles.avgTime*0.9);
+setcResponseTime(0);
+setcRestTime(0);
 
-handles.spentTime = 0;
-
-handles.timeWatcher = zeros(1,6);
-handles.cLimitTime = handles.avgTime;
-handles.cResponseTime = 0;
-handles.cRestTime = 0;
+setGroupHitRate(80);
 
 guidata(hObject, handles);
 set(gcf, 'units','normalized','outerposition',[0 0 1 1]);
@@ -89,8 +82,6 @@ varargout{1} = handles.output;
 
 function background_WindowKeyPressFcn(hObject, eventdata, handles)
 
-disp(strcat('blockGui: ',num2str(handles.blockGui)));
-
 try
    keyPressed = eventdata.Key;
 catch
@@ -99,79 +90,187 @@ end
 
 % force escape
 if strcmpi(keyPressed,'escape')
-    pause(1);
+    disp(getTimeWatcher);
+    pause(0.3);
     fclose('all');
     delete(hObject);
 end
 
 formatSpec = '%d, %d, %s, %d, %s, %d, %.3f\n'; % #, fase, questao, reposta, resposta_individuo, {0,1}, tempo
-responseFile = handles.responseFile;
+responseFile = getResponseFile;
 
-% rest code
-if (handles.stateOrder(handles.stateIndex) == 1) & (handles.blockGui == 0)
-    if strcmpi(keyPressed,'space')          % trigger esta como 'space'
-        if ~handles.isRunning
-            handles.blockGui = 1;
-            guidata(hObject, handles);
+stateOrder = getStateOrder;
+sizeStateOrder = size(stateOrder);
+sizeStateOrderColumms = sizeStateOrder(2);
+
+if (sizeStateOrderColumms >= getStateIndex)
+
+state = stateOrder(getStateIndex);
+
+    % rest code
+    if (state == 1) & (getBlockGui == 0)
+        if strcmpi(keyPressed,'space')          % trigger esta como 'space'
+            setTimeCounter;      % conta o tempo total do experimento
+            background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
+        else
+            setBlockGui(1);
             setVisibleRest(handles);
-            pause(handles.restTime);
-            handles.blockGui = 0;
-            populateTimeWatcher(hObject, handles, handles.stateOrder(handles.stateIndex), 0, 0, 0, 0, handles.restTime);
-            handles.stateIndex = handles.stateIndex + 1;
+            pause(getRestTime);
+            setBlockGui(0);
+            populateTimeWatcher(hObject, handles, state, 0, 0, 0, 0, getRestTime, nan);
+            setStateIndex(getStateIndex + 1);
             guidata(hObject, handles);
             background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
         end
     end
-end
-
-% control code
-if (handles.stateOrder(handles.stateIndex) == 2) & (~isnan(keyPressed)) & (handles.blockGui == 0)
-    setVisibleControl(handles);
-    if ismember(keyPressed, handles.possibleKeys)    
-        handleResponse(hObject, handles, responseFile, formatSpec, keyPressed);
-        answer = checkAnswer(hObject, handles, keyPressed);
-        setFeedback(handles, answer);
-        handles.blockGui = 1;
-        guidata(hObject,handles);
-        pause(handles.feedbackTime);      % tempo de feedback ao usuario
-        handles.blockGui = 0;
-        guidata(hObject,handles);
+    
+    % control code
+    if (state == 2) & (~isnan(keyPressed)) & (getBlockGui == 0)
+        setVisibleControl(handles);
+        if ismember(keyPressed, getPossibleKeys)
+            handleResponse(hObject, handles, responseFile, formatSpec, keyPressed);
+            answer = checkAnswer(hObject, handles, keyPressed);
+            setFeedback(handles, answer);
+            setBlockGui(1);
+            pause(getFeedbackTime);      % tempo de feedback ao usuario
+            setBlockGui(0);
+            resetBtColors(hObject, handles);
+            randomRest(hObject, handles);
+            % resposta adquirida
+            populateTimeWatcher(hObject, handles, state, getQuestionCounter, getcLimitTime, getcResponseTime, getFeedbackTime, getcRestTime, answer);
+            remainingTime = getControlTime-getTotalStateTime;
+            if (remainingTime > getcLimitTime)
+                setQuestionCounter(getQuestionCounter+1);
+            else
+                setBlockGui(1);
+                setVisibleRest(handles);
+                pause(remainingTime);
+                setStateIndex(getStateIndex+1);
+                if remainingTime > 0
+                    populateTimeWatcher(hObject, handles, state, 0, 0, 0, 0, remainingTime, nan);
+                end
+                setcLimitTime(getControlAvgTime*0.9);
+                setQuestionCounter(1);
+                setBlockGui(0);
+            end
+            background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
+        end
+        waitResponse(hObject, handles);
+        setFeedback(handles,2);
+        setBlockGui(1);
+        pause(getFeedbackTime);      % tempo de feedback ao usuario
+        setBlockGui(0);
         resetBtColors(hObject, handles);
         randomRest(hObject, handles);
-        populateTimeWatcher(hObject, handles, handles.stateOrder(handles.stateIndex), handles.questionCounter, handles.cLimitTime, handles.cLimitTime, handles.feedbackTime, handles.cRestTime);
+        background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
+    elseif (state == 2) & (getBlockGui == 0)
+        newQuestion(hObject, handles);
+        setVisibleControl(handles);
+        waitResponse(hObject, handles);
+        setFeedback(handles,2);
+        setBlockGui(1);
+        pause(getFeedbackTime);      % tempo de feedback ao usuario
+        setBlockGui(0);
+        resetBtColors(hObject, handles);
+        randomRest(hObject, handles);
+        % resposta adquirida
+        populateTimeWatcher(hObject, handles, state, getQuestionCounter, getcLimitTime, getcLimitTime, getFeedbackTime, getcRestTime, 2);
+        remainingTime = getControlTime-getTotalStateTime;
+        if (remainingTime > getcLimitTime)
+            setQuestionCounter(getQuestionCounter+1);
+        else
+            setBlockGui(1);
+            setVisibleRest(handles);
+            pause(remainingTime);
+            setStateIndex(getStateIndex+1);
+            if remainingTime > 0
+                    populateTimeWatcher(hObject, handles, state, 0, 0, 0, 0, remainingTime, nan);
+            end
+            setcLimitTime(getControlAvgTime*0.9);
+            setQuestionCounter(1);
+            setBlockGui(0);
+        end
         background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
     end
-    waitResponse(hObject, handles);
-    setFeedback(handles,2);
-    handles.blockGui = 1;
-    guidata(hObject,handles);
-    pause(handles.feedbackTime);      % tempo de feedback ao usuario
-    handles.blockGui = 0;
-    guidata(hObject,handles);
-    resetBtColors(hObject, handles);
-    randomRest(hObject, handles);
-    populateTimeWatcher(hObject, handles, handles.stateOrder(handles.stateIndex), handles.questionCounter, handles.cLimitTime, handles.cLimitTime, handles.feedbackTime, handles.cRestTime);
-    background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
-elseif (handles.stateOrder(handles.stateIndex) == 2) & (handles.blockGui == 0)
-    newQuestion(hObject, handles);
-    setVisibleControl(handles);
-    waitResponse(hObject, handles);
-    setFeedback(handles,2);
-    handles.blockGui = 1;
-    guidata(hObject,handles);
-    pause(handles.feedbackTime);      % tempo de feedback ao usuario
-    handles.blockGui = 0;
-    guidata(hObject,handles);
-    resetBtColors(hObject, handles);
-    randomRest(hObject, handles);
-    populateTimeWatcher(hObject, handles, handles.stateOrder(handles.stateIndex), handles.questionCounter, handles.cLimitTime, handles.cLimitTime, handles.feedbackTime, handles.cRestTime);
-    background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
+    
+    % activation code
+    if (state == 3) & (~isnan(keyPressed)) & (getBlockGui == 0)
+        %setVisibleActivation(handles);
+        if ismember(keyPressed, getPossibleKeys)
+            handleResponse(hObject, handles, responseFile, formatSpec, keyPressed);
+            answer = checkAnswer(hObject, handles, keyPressed);
+            setFeedback(handles, answer);
+            setBlockGui(1);
+            pause(getFeedbackTime);      % tempo de feedback ao usuario
+            setBlockGui(0);
+            resetBtColors(hObject, handles);
+            randomRest(hObject, handles);
+            % resposta adquirida
+            populateTimeWatcher(hObject, handles, state, getQuestionCounter, getcLimitTime, getcResponseTime, getFeedbackTime, getcRestTime, answer);
+            remainingTime = getControlTime-getTotalStateTime;
+            if (remainingTime > getcLimitTime)
+                setQuestionCounter(getQuestionCounter+1);
+            else
+                setBlockGui(1);
+                setVisibleRest(handles);
+                pause(remainingTime);
+                setStateIndex(getStateIndex+1);
+                if remainingTime > 0
+                    populateTimeWatcher(hObject, handles, state, 0, 0, 0, 0, remainingTime, nan);
+                end
+                setQuestionCounter(1);
+                setBlockGui(0);
+            end
+            background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
+        end
+        waitResponse(hObject, handles);
+        setFeedback(handles,2);
+        setBlockGui(1);
+        pause(getFeedbackTime);      % tempo de feedback ao usuario
+        setBlockGui(0);
+        resetBtColors(hObject, handles);
+        randomRest(hObject, handles);
+        background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
+    elseif (state == 3) & (getBlockGui == 0)
+        newQuestion(hObject, handles);
+        setVisibleActivation(handles);
+        updateAxisActivation(hObject,handles);
+        waitResponse(hObject, handles);
+        setFeedback(handles,2);
+        setBlockGui(1);
+        pause(getFeedbackTime);      % tempo de feedback ao usuario
+        setBlockGui(0);
+        resetBtColors(hObject, handles);
+        randomRest(hObject, handles);
+        % resposta adquirida
+        populateTimeWatcher(hObject, handles, state, getQuestionCounter, getcLimitTime, getcLimitTime, getFeedbackTime, getcRestTime, 2);
+        remainingTime = getControlTime-getTotalStateTime;
+        if (remainingTime > getcLimitTime)
+            setQuestionCounter(getQuestionCounter+1);
+        else
+            setBlockGui(1);
+            setVisibleRest(handles);
+            pause(remainingTime);
+            setStateIndex(getStateIndex+1);
+            if remainingTime > 0
+                populateTimeWatcher(hObject, handles, state, 0, 0, 0, 0, remainingTime, nan);
+            end
+            setQuestionCounter(1);
+            setBlockGui(0);
+        end
+        background_WindowKeyPressFcn(hObject, handles.initialEventdata, handles);
+    end
+    
+else
+    % finaliza a tarefa
+    disp(getTimeWatcher);
+    disp(getTimeCounter);
+    disp(getHitRate);
+    pause(0.3);
+    fclose('all');
+    delete(hObject);
 end
 
-% activation code
-if handles.stateOrder(handles.stateIndex) == 3
-    % TODO
-end
 guidata(hObject, handles);
 
 
@@ -180,24 +279,26 @@ bt = choosenBt(handles, key);
 bt.BackgroundColor = [1 0 0];
 bt.ForegroundColor = [1 1 1];
 answer = checkAnswer(hObject, handles, key);
-fprintf(responseFile,formatSpec,handles.counter,handles.stateOrder(handles.stateIndex),handles.equation.String{1},handles.responses(handles.questionIndex),key,answer,toc);
-handles.counter=handles.counter+1;
-handles.cResponseTime = getTimeSaved;
-populateTimeWatcher(hObject, handles, handles.stateOrder(handles.stateIndex), handles.questionCounter, handles.cLimitTime, handles.cResponseTime, handles.feedbackTime, handles.cRestTime);
+responses = getResponses;
+expectedResponse = responses(getQuestionIndex);
+stateOrder = getStateOrder;
+state = stateOrder(getStateIndex);
+fprintf(responseFile,formatSpec,getCounter,state,handles.equation.String{1},expectedResponse,key,answer,'tempo');
+setCounter(getCounter + 1);
+setcResponseTime(getTimeSaved);
 guidata(hObject,handles);
 
 function newQuestion(hObject, handles)
-handles.blockGui = 0;
+setBlockGui(0);
 resetBtColors(hObject, handles);
-questions = handles.questions;
+questions = getQuestions;
 questions_size = size(questions);
 questions_size = questions_size(1);
 choosen_equation_index = fix(rand()*questions_size);
-handles.questionIndex = choosen_equation_index;
-handles.equation.String = strcat(handles.questions(choosen_equation_index), ' ?');
+setQuestionIndex(choosen_equation_index);
+handles.equation.String = strcat(questions(choosen_equation_index), ' ?');
 setTimeSaved;
 guidata(hObject,handles);
-tic;
 
 function bt = choosenBt(data, key)
 switch key
@@ -269,6 +370,7 @@ guidata(hObject,data);
 
 function setVisibleControl(handles)
 setAllInvisible(handles)
+set(handles.axis,'visible','off')
 set(handles.equation,'visible','on')
 set(handles.bt0,'visible','on')
 set(handles.bt1,'visible','on')
@@ -283,6 +385,11 @@ set(handles.bt9,'visible','on')
 
 function setVisibleActivation(handles)
 setAllInvisible(handles)
+set(handles.axis,'visible','on')
+set(handles.axisGroupLabel,'visible','on')
+set(handles.axisGroupValue,'visible','on')
+set(handles.axisYouLabel,'visible','on')
+set(handles.axisYouValue,'visible','on')
 set(handles.equation,'visible','on')
 set(handles.bt0,'visible','on')
 set(handles.bt1,'visible','on')
@@ -300,6 +407,12 @@ setAllInvisible(handles)
 set(handles.cross,'visible','on')
 
 function setAllInvisible(handles)
+set(handles.axis,'visible','off')
+cla;
+set(handles.axisGroupLabel,'visible','off')
+set(handles.axisGroupValue,'visible','off')
+set(handles.axisYouLabel,'visible','off')
+set(handles.axisYouValue,'visible','off')
 set(handles.feedback,'visible','off')
 set(handles.trigger,'visible','off')
 set(handles.equation,'visible','off')
@@ -332,23 +445,36 @@ switch type
 end
 
 
+function updateAxisActivation(hObject,handles)
+axes(handles.axis);
+hitRate = getHitRate;
+set(handles.axisYouValue,'String', strcat((sprintf('%0.0f', hitRate*100)),'%'));
+y = [hitRate*100, getGroupHitRate];
+barh(y, 'white');
+xlim([0 100])
+ax = gca;
+ax.XColor = 'black';
+ax.YColor = 'black';
+ax.ZColor = 'black';
+guidata(hObject, handles);
+
+
 function answer = checkAnswer(hObject, handles, key)
-handles = guidata(hObject);
-if strcmpi(num2str(handles.responses(handles.questionIndex)), key)
+responses = getResponses;
+if strcmpi(num2str(responses(getQuestionIndex)), key)
     answer = 1;
 else
     answer = 0;
 end
-disp(strcat('answer: ', num2str(answer), ' response: ', num2str(handles.responses(handles.questionIndex)), ' index: ', num2str(handles.questionIndex), ' key: ', key));
 
 function randomRest(hObject, handles)
-handles.blockGui = 1;
+setBlockGui(1);
 guidata(hObject, handles);
 setVisibleRest(handles);
 i = random('normal', 3, 0.5);
 pause(i);
-handles.blockGui = 0;
-handles.cRestTime = i;
+setBlockGui(0);
+setcRestTime(i);
 guidata(hObject, handles);
 
 function waitResponse(hObject, handles)
@@ -356,7 +482,7 @@ setCountdown(hObject, handles);
 
 function setCountdown(hObject, handles)
 set(handles.timer,'visible','on');
-t = timer('TimerFcn', 'stat=false; counter=0; disp(''Acabou o timer!'')', 'StartDelay', handles.avgTime);
+t = timer('TimerFcn', 'stat=false; counter=0;', 'StartDelay', handles.avgTime);
 start(t)
 stat=true;
 counter = 0;
@@ -371,13 +497,200 @@ while(stat==true)
 end
 delete(t)
 
-function populateTimeWatcher(hObject, handles, state, questionCounter, limitTime, responseTime, feedbackTime, restTime)
-s = size(handles.timeWatcher);
+function populateTimeWatcher(hObject, handles, state, questionCounter, limitTime, responseTime, feedbackTime, restTime, hit)
+timeWatcher = getTimeWatcher;
+s = size(timeWatcher);
 s_rows = s(1);
 index = s_rows + 1;
-handles.timeWatcher(index, :) = [state questionCounter limitTime responseTime feedbackTime restTime];
-guidata(hObject, handles);
-disp(handles.timeWatcher);
+timeWatcher(index, :) = [state questionCounter limitTime responseTime feedbackTime restTime hit];
+setTimeWatcher(timeWatcher)
+
+function r = getTotalStateTime
+r = 0;
+timeWatcher = getTimeWatcher;
+s = size(timeWatcher);
+s_rows = s(1);
+for n = 0:getQuestionCounter-1
+   r = r + timeWatcher(s_rows-n,4) + timeWatcher(s_rows-n,5) + timeWatcher (s_rows-n,6);
+end
+
+function r = getControlAvgTime
+r = 0;
+sum = 0;
+timeWatcher = getTimeWatcher;
+s = size(timeWatcher);
+s_rows = s(1);
+for n = 0:getQuestionCounter-1
+   sum = sum + timeWatcher(s_rows-n,4);
+end
+r = sum/getQuestionCounter;
+
+
+% GETTERS AND SETTERS FOR GLOBAL VARIABLES
+
+function setResponseFile(val)
+global responseFile
+responseFile = val;
+
+function r = getResponseFile
+global responseFile
+r = responseFile;
+
+function setQuestions(val)
+global questions
+questions = val;
+
+function r = getQuestions
+global questions
+r = questions;
+
+function setResponses(val)
+global responses
+responses = val;
+
+function r = getResponses
+global responses
+r = responses;
+
+function setQuestionIndex(val)
+global questionIndex
+questionIndex = val;
+
+function r = getQuestionIndex
+global questionIndex
+r = questionIndex;
+
+function setCounter(val)
+global counter
+counter = val;
+
+function r = getCounter
+global counter
+r = counter;
+
+function setPossibleKeys(val)
+global possibleKeys
+possibleKeys = val;
+
+function r = getPossibleKeys
+global possibleKeys
+r = possibleKeys;
+
+function setStateOrder(val)
+global stateOrder
+stateOrder = val;
+
+function r = getStateOrder
+global stateOrder
+r = stateOrder;
+
+function setStateIndex(val)
+global stateIndex
+stateIndex = val;
+
+function r = getStateIndex
+global stateIndex
+r = stateIndex;
+
+function setRestTime(val)
+global restTime
+restTime = val;
+
+function r = getRestTime
+global restTime
+r = restTime;
+
+function setControlTime(val)
+global controlTime
+controlTime = val;
+
+function r = getControlTime
+global controlTime
+r = controlTime;
+
+function setActivationTime(val)
+global activationTime
+activationTime = val;
+
+function r = getActivationTime
+global activationTime
+r = activationTime;
+
+function setFeedbackTime(val)
+global feedbackTime
+feedbackTime = val;
+
+function r = getFeedbackTime
+global feedbackTime
+r = feedbackTime;
+
+function setBlockGui(val)
+global blockGui
+blockGui = val;
+
+function r = getBlockGui
+global blockGui
+r = blockGui;
+
+function setQuestionCounter(val)
+global questionCounter
+questionCounter = val;
+
+function r = getQuestionCounter
+global questionCounter
+r = questionCounter;
+
+function setTimeWatcher(val)
+global timeWatcher
+timeWatcher = val;
+
+function r = getTimeWatcher
+global timeWatcher
+r = timeWatcher;
+
+function setcLimitTime(val)
+global cLimitTime
+cLimitTime = val;
+
+function r = getcLimitTime
+global cLimitTime
+r = cLimitTime;
+
+function setcResponseTime(val)
+global cResponseTime
+cResponseTime = val;
+
+function r = getcResponseTime
+global cResponseTime
+r = cResponseTime;
+
+function setcRestTime(val)
+global cRestTime
+cRestTime = val;
+
+function r = getcRestTime
+global cRestTime
+r = cRestTime;
+
+function setGroupHitRate(val)
+global groupHitRate
+groupHitRate = val;
+
+function r = getGroupHitRate
+global groupHitRate
+r = groupHitRate;
+
+function r = getHitRate
+global hitRate
+m = getTimeWatcher;
+activationHits = sum([m(:,1)==3 & m(:,7)==1]);
+activationResponses = sum([m(:,1)==3 & ~isnan(m(:,7))]);
+if activationResponses > 0
+    hitRate = activationHits/activationResponses;
+else
+    hitRate = 0;
+end
+r = hitRate;
 
 function setTimeSaved
 global timeSaved
@@ -386,6 +699,14 @@ timeSaved = tic;
 function r = getTimeSaved
 global timeSaved
 r = toc(timeSaved);
+
+function setTimeCounter
+global timeCounter
+timeCounter = tic;
+
+function r = getTimeCounter
+global timeCounter
+r = toc(timeCounter);
 
 
 function background_SizeChangedFcn(hObject, eventdata, handles)
